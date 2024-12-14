@@ -1,0 +1,65 @@
+import yfinance as yf
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+
+# Fetch stock data
+stock_symbol = 'AAPL'  # Example: Apple Inc.
+data = yf.download(stock_symbol, start='2022-01-01', end='2023-01-01')
+
+# Calculate daily returns
+data['Daily Return'] = data['Adj Close'].pct_change()
+
+# Remove NaN values
+data.dropna(inplace=True)
+
+# Calculate metrics
+metrics = {
+    'Daily Volume': data['Volume'],
+    'Daily Close Price': data['Adj Close'],
+    'Daily Returns': data['Daily Return']
+}
+
+results = {}
+
+for metric_name, values in metrics.items():
+    mean = values.mean()
+    std = values.std()
+    n = len(values)
+
+    # Calculate Z-score (standardized values)
+    z_scores = (values - mean) / std
+
+    # Calculate T-score
+    t_scores = stats.t.ppf((1 + 0.95) / 2, df=n-1)
+
+    # Confidence Interval (95%)
+    margin_error = t_scores * (std / np.sqrt(n))
+    conf_interval = (mean - margin_error, mean + margin_error)
+
+    # Save results
+    results[metric_name] = {
+        'Mean': mean,
+        'Standard Deviation': std,
+        'Confidence Interval (95%)': conf_interval
+    }
+
+    # Plot Probability Distribution
+    plt.figure(figsize=(10, 6))
+    plt.hist(values, bins=50, alpha=0.6, color='blue', density=True, label=f'{metric_name} Histogram')
+    xmin, xmax = plt.xlim()
+    x = np.linspace(xmin, xmax, 100)
+    p = stats.norm.pdf(x, mean, std)
+    plt.plot(x, p, 'k', linewidth=2, label='Normal Distribution Fit')
+    plt.title(f'Probability Distribution for {metric_name}')
+    plt.xlabel(metric_name)
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.show()
+
+# Display results
+for metric, analysis in results.items():
+    print(f"\nAnalysis for {metric}:")
+    for key, value in analysis.items():
+        print(f"  {key}: {value}")
